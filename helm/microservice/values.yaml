@@ -1,0 +1,29 @@
+replicaCount: 2
+
+image:
+  # Pipeline overrides this with --set image.repository=<URI>
+  repository: ghcr.io/example/microservice
+  tag: latest
+
+# Per-pod requests/limits (configurable).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# PodDisruptionBudget (configurable).
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Namespace ResourceQuota (configurable).
+resourceQuota:
+  enabled: false
+  hard:
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi

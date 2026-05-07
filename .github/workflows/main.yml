@@ -1,0 +1,64 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  # 1) Terraform: fmt, validate, plan
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      AWS_ACCESS_KEY_ID: fake
+      AWS_SECRET_ACCESS_KEY: fake
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+      - run: terraform plan -input=false -lock=false
+
+  # 2) Docker: build the image and push it to GHCR (public).
+  docker:
+    runs-on: ubuntu-latest
+    needs: terraform
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-microservice
+          tags: type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  # 3) Helm: lint + dry-run install (synthetic deployment).
+  helm:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+      - run: helm lint helm/microservice
+      - run: |
+          helm install microservice helm/microservice \
+            --dry-run --debug \
+            --set image.repository=ghcr.io/${{ github.repository }}-microservice \
+            --set image.tag=sha-${GITHUB_SHA::7}
