@@ -3,7 +3,7 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  # 1) Terraform: fmt, validate, plan
+  #  Terraform: fmt, validate, plan
   terraform:
     runs-on: ubuntu-latest
     defaults:
@@ -21,7 +21,7 @@ jobs:
       - run: terraform validate
       - run: terraform plan -input=false -lock=false
 
-  # 2) Docker: build the image and push it to GHCR (public).
+  #  Docker: build the image and push it to GHCR (public).
   docker:
     runs-on: ubuntu-latest
     needs: terraform
@@ -48,7 +48,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
-  # 3) Helm: lint + dry-run install (synthetic deployment).
+  # Helm: lint + dry-run install (synthetic deployment).
   helm:
     runs-on: ubuntu-latest
     needs: docker
